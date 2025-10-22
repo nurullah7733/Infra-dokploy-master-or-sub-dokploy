@@ -1,0 +1,125 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+# Install required packages
+packages:
+  - curl
+  - ufw
+
+# Write configuration files
+write_files:
+  # Docker daemon configuration
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        },
+        "storage-driver": "overlay2",
+        "dns": ["8.8.8.8", "8.8.4.4"],
+        "userland-proxy": false
+      }
+    owner: root:root
+    permissions: '0644'
+
+  # Floating IP configuration script (for after reboot to again bind floating ip)
+  - path: /usr/local/bin/configure-floating-ip.sh
+    content: |
+      #!/bin/bash
+      FLOATING_IP="${floating_ip}"
+      
+      # Check if floating IP is already configured
+      if ip addr show | grep -q "$FLOATING_IP"; then
+        echo "Floating IP $FLOATING_IP already configured"
+        exit 0
+      fi
+      
+      # Add floating IP to network interface
+      ip addr add $FLOATING_IP/32 dev eth0 || true
+      
+      # Make it persistent
+      if ! grep -q "$FLOATING_IP" /etc/network/interfaces.d/60-floating-ip.cfg 2>/dev/null; then
+        mkdir -p /etc/network/interfaces.d
+        cat > /etc/network/interfaces.d/60-floating-ip.cfg <<EOF
+      auto eth0:1
+      iface eth0:1 inet static
+        address $FLOATING_IP/32
+      EOF
+      fi
+      
+      echo "Floating IP $FLOATING_IP configured successfully"
+    owner: root:root
+    permissions: '0755'
+
+  # Dokploy installation script
+  - path: /usr/local/bin/install-dokploy.sh
+    content: |
+      #!/bin/bash
+      set -e
+      
+      echo "Installing Dokploy..."
+      
+      # Download and run Dokploy installer
+      curl -sSL https://dokploy.com/install.sh | bash
+      
+      # Wait for Dokploy to start
+      sleep 20
+      
+      # Check if Dokploy is running
+      if docker ps | grep -q dokploy; then
+        echo "Dokploy installed successfully!"
+        docker ps
+      else
+        echo "Dokploy installation may have issues. Check logs with: docker logs dokploy"
+        exit 1
+      fi
+    owner: root:root
+    permissions: '0755'
+
+# Run commands
+runcmd:
+  # Configure floating IP
+  - bash /usr/local/bin/configure-floating-ip.sh
+  
+  # Install Docker (official method)
+  - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  - sh /tmp/get-docker.sh
+  - rm /tmp/get-docker.sh
+  
+  # Enable and start Docker
+  - systemctl enable docker
+  - systemctl start docker
+  
+  # Add root to docker group (optional)
+  - usermod -aG docker root
+  
+  # Configure UFW firewall
+  - ufw --force reset
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp comment 'SSH'
+  - ufw allow 80/tcp comment 'HTTP'
+  - ufw allow 443/tcp comment 'HTTPS'
+  - ufw allow 3000/tcp comment 'Dokploy UI'
+  - ufw --force enable
+  - ufw status verbose
+  
+  # Install Dokploy
+  - bash /usr/local/bin/install-dokploy.sh
+  
+  # Enable Dokploy service
+  - systemctl enable dokploy || true
+  
+  # Wait a bit and show status
+  - sleep 10
+  - docker ps
+  - systemctl status dokploy --no-pager || true
+
+# Enable swap (recommended for smaller servers)
+swap:
+  filename: /swapfile
+  size: 2G
+  maxsize: 2G
