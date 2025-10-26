@@ -92,6 +92,8 @@ runcmd:
   # Enable and start Docker
   - systemctl enable docker
   - systemctl start docker
+  - docker network create traefik
+  - echo "Traefik network created"
   
   # Add root to docker group (optional)
   - usermod -aG docker root
