@@ -106,6 +106,7 @@ runcmd:
   - ufw allow 80/tcp comment 'HTTP'
   - ufw allow 443/tcp comment 'HTTPS'
   - ufw allow 3000/tcp comment 'Dokploy UI'
+  - ufw allow 5432/tcp comment 'PostgreSQL'
   - ufw --force enable
   - ufw status verbose
   

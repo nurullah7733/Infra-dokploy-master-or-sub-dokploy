@@ -61,6 +61,13 @@ resource "hcloud_firewall" "dokploy-for-mern-project" {
     protocol   = "tcp"
     port       = "3000"
     source_ips = ["0.0.0.0/0", "::/0"]
+  }
+# postgreSQL
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "5432"
+    source_ips = ["0.0.0.0/0", "::/0"]
   } 
 
   rule {
