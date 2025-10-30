@@ -2,14 +2,12 @@
 package_update: true
 package_upgrade: true
 
-# Install required packages
 packages:
   - curl
   - ufw
 
-# Write configuration files
 write_files:
-  # Docker daemon configuration
+  # docker config
   - path: /etc/docker/daemon.json
     content: |
       {
@@ -25,103 +23,81 @@ write_files:
     owner: root:root
     permissions: '0644'
 
-  # Floating IP configuration script (for after reboot to again bind floating ip)
+  # floating ip generate
   - path: /usr/local/bin/configure-floating-ip.sh
     content: |
       #!/bin/bash
       FLOATING_IP="${floating_ip}"
-      
-      # Check if floating IP is already configured
       if ip addr show | grep -q "$FLOATING_IP"; then
         echo "Floating IP $FLOATING_IP already configured"
         exit 0
       fi
-      
-      # Add floating IP to network interface
       ip addr add $FLOATING_IP/32 dev eth0 || true
-      
-      # Make it persistent
-      if ! grep -q "$FLOATING_IP" /etc/network/interfaces.d/60-floating-ip.cfg 2>/dev/null; then
-        mkdir -p /etc/network/interfaces.d
-        cat > /etc/network/interfaces.d/60-floating-ip.cfg <<EOF
+      mkdir -p /etc/network/interfaces.d
+      cat > /etc/network/interfaces.d/60-floating-ip.cfg <<EOF
       auto eth0:1
       iface eth0:1 inet static
         address $FLOATING_IP/32
       EOF
-      fi
-      
       echo "Floating IP $FLOATING_IP configured successfully"
     owner: root:root
     permissions: '0755'
 
-  # Dokploy installation script
-  - path: /usr/local/bin/install-dokploy.sh
+ 
+ 
+  # if sub dokploy to inject master dokploy public key
+  %{ if is_master_dokploy }
+  - path: /root/.ssh/authorized_keys
     content: |
-      #!/bin/bash
-      set -e
-      
-      echo "Installing Dokploy..."
-      
-      # Download and run Dokploy installer
-      curl -sSL https://dokploy.com/install.sh | bash
-      
-      # Wait for Dokploy to start
-      sleep 20
-      
-      # Check if Dokploy is running
-      if docker ps | grep -q dokploy; then
-        echo "Dokploy installed successfully!"
-        docker ps
-      else
-        echo "Dokploy installation may have issues. Check logs with: docker logs dokploy"
-        exit 1
-      fi
+      ${master_dokploy_ssh_public_key}
     owner: root:root
-    permissions: '0755'
+    permissions: '0600'
+  %{ endif }
 
-# Run commands
 runcmd:
-  # Configure floating IP
-  - bash /usr/local/bin/configure-floating-ip.sh
-  
-  # Install Docker (official method)
+  - echo "🚀 Starting Cloud Init Setup..."
+  # docker install
   - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
   - sh /tmp/get-docker.sh
   - rm /tmp/get-docker.sh
-  
-  # Enable and start Docker
   - systemctl enable docker
   - systemctl start docker
+
+  # floating ip bind 
+  - bash /usr/local/bin/configure-floating-ip.sh
   - docker network create traefik
-  - echo "Traefik network created"
-  
-  # Add root to docker group (optional)
   - usermod -aG docker root
-  
-  # Configure UFW firewall
+
+   # Dokploy install
+  - curl -sSL https://dokploy.com/install.sh | bash
+
+  # port open
   - ufw --force reset
   - ufw default deny incoming
   - ufw default allow outgoing
   - ufw allow 22/tcp comment 'SSH'
   - ufw allow 80/tcp comment 'HTTP'
   - ufw allow 443/tcp comment 'HTTPS'
-  - ufw allow 3000/tcp comment 'Dokploy UI'
+
+%{ if enable_postgres }
   - ufw allow 5432/tcp comment 'PostgreSQL'
+%{ endif }
+%{ if enable_mysql }
+  - ufw allow 3306/tcp comment 'MySQL'
+%{ endif }
+%{ if enable_mongo }
+  - ufw allow 27017/tcp comment 'MongoDB'
+%{ endif }
+%{ if enable_redis }
+  - ufw allow 6379/tcp comment 'Redis'
+%{ endif }
+
   - ufw --force enable
   - ufw status verbose
-  
-  # Install Dokploy
-  - bash /usr/local/bin/install-dokploy.sh
-  
-  # Enable Dokploy service
-  - systemctl enable dokploy || true
-  
-  # Wait a bit and show status
-  - sleep 10
-  - docker ps
-  - systemctl status dokploy --no-pager || true
 
-# Enable swap (recommended for smaller servers)
+  - sleep 20
+  - docker ps
+
 swap:
   filename: /swapfile
   size: 2G

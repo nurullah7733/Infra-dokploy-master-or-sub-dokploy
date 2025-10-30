@@ -1,5 +1,5 @@
 output "vm_ips" {
-  value = [for server in hcloud_server.dokploy-for-mern-project : server.ipv4_address]
+  value = [for server in hcloud_server.dokploy-project : server.ipv4_address]
 }
 
 output "floating_ip" {

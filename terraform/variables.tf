@@ -16,6 +16,16 @@ variable "domain" {
   default = "example.com"
 }
 
+variable "dokploy_domain" {
+  type = string
+  default = "example.com"
+}
+
+variable "subdomain" {
+  type = string
+  default = "test"
+}
+
 variable "locations" {
   type = list(string)
   default = ["fsn1", "hel1", "nbg1", "sgp1"]
@@ -32,10 +42,40 @@ variable "hetznerdns_token" {
   sensitive = true
 }
 
-# variable "monitoring_vm_ip" {
-#  type      = string
-#  sensitive = true
-#  default = []
-# }
+variable "master_dokploy_ssh_public_key" {
+  type      = string
+  default = ""
+}
+
+variable "enable_postgres" {
+  type      = bool
+  default = false
+  description = "if need to postgresql public app"
+}
+
+variable "enable_mysql" {
+  type      = bool
+  default = false
+  description = "if need to mysql public app"
+}
+
+variable "enable_mongo" {
+  type      = bool
+  default = false
+   description = "if need to mongodb public app"
+}
+
+variable "enable_redis" {
+  type      = bool
+  default = false
+   description = "if need to redis public app"
+}
+
+variable "is_master_dokploy" {
+  type      = bool
+  default = false
+}
+
+ 
 
  
