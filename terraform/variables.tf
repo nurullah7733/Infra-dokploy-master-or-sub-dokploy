@@ -23,7 +23,7 @@ variable "dokploy_domain" {
 
 variable "subdomain" {
   type = string
-  default = "test"
+  default = "dokploy"
 }
 
 variable "locations" {
@@ -62,18 +62,25 @@ variable "enable_mysql" {
 variable "enable_mongo" {
   type      = bool
   default = false
-   description = "if need to mongodb public app"
+  description = "if need to mongodb public app"
 }
 
 variable "enable_redis" {
   type      = bool
   default = false
-   description = "if need to redis public app"
+  description = "if need to redis public app"
 }
 
 variable "is_master_dokploy" {
   type      = bool
   default = false
+  description = "Its for master or sub dokploy"
+}
+
+variable "open_ports" {
+  description = "List of extra TCP ports to open (e.g., [5432, 3306, 5050])"
+  type        = list(number)
+  default     = []
 }
 
  

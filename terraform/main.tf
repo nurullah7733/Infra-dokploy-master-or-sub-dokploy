@@ -9,10 +9,7 @@ data "template_file" "cloud_init" {
     hostname              = "dokploy-project-${var.locations[count.index]}"
     is_master_dokploy = !var.is_master_dokploy
     master_dokploy_ssh_public_key = var.master_dokploy_ssh_public_key
-    enable_postgres = var.enable_postgres
-    enable_mysql = var.enable_mysql
-    enable_mongo = var.enable_mongo
-    enable_redis = var.enable_redis
+    open_ports   = join(",", var.open_ports)
   }
 }
 
@@ -39,15 +36,6 @@ resource "hcloud_server" "dokploy-project" {
 }
 
 
-# Local port lists
-locals {
-  optional_ports = concat(
-    var.enable_postgres ? ["5432"] : [],
-    var.enable_redis    ? ["6379"] : [],
-    var.enable_mysql    ? ["3306"] : [],
-    var.enable_mongo    ? ["27017"] : []
-  )
-}
 resource "hcloud_firewall" "dokploy-project" {
   name = "allow-http-ssh-dokploy-project-${var.subdomain}"
 
@@ -62,13 +50,13 @@ resource "hcloud_firewall" "dokploy-project" {
     }
   }
 
-  # Dynamic optional DB ports (based on variables)
+  # Dynamically open user-specified ports
   dynamic "rule" {
-    for_each = local.optional_ports
+    for_each = var.open_ports
     content {
       direction  = "in"
       protocol   = "tcp"
-      port       = rule.value
+      port       = tostring(rule.value) # important! hcloud expects string
       source_ips = ["0.0.0.0/0", "::/0"]
     }
   }

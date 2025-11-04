@@ -79,18 +79,13 @@ runcmd:
   - ufw allow 80/tcp comment 'HTTP'
   - ufw allow 443/tcp comment 'HTTPS'
 
-%{ if enable_postgres }
-  - ufw allow 5432/tcp comment 'PostgreSQL'
-%{ endif }
-%{ if enable_mysql }
-  - ufw allow 3306/tcp comment 'MySQL'
-%{ endif }
-%{ if enable_mongo }
-  - ufw allow 27017/tcp comment 'MongoDB'
-%{ endif }
-%{ if enable_redis }
-  - ufw allow 6379/tcp comment 'Redis'
-%{ endif }
+  - |
+    for port in $(echo "$${open_ports}" | tr ',' ' '); do
+      if [ -n "$$port" ]; then
+        echo "Allowing TCP port $$port..."
+        ufw allow $${port}/tcp comment "Custom Port $${port}"
+      fi
+    done
 
   - ufw --force enable
   - ufw status verbose
