@@ -1,0 +1,16 @@
+hcloud_token = ""
+hetznerdns_token= ""
+ssh_key_name = ""
+domain       = "example.com"
+subdomain       = "staging1"
+# dokploy_domain example = "dokploy.example.com"
+dokploy_domain = "staging1.example.com"
+locations = ["nbg1"]
+server_type = "cpx21"
+# provide ip id or [],
+existing_floating_ip_ids = []
+is_master_dokploy = false
+# if no master_dokploy_ssh_public_key = ""
+master_dokploy_ssh_public_key = "ssh-ed25519..........."
+# open port list example = [5432, 3306, 5050] or []
+open_ports = [5435, 5050, 3306, 5121]
